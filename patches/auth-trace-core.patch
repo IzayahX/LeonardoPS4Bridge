@@ -1,0 +1,30 @@
+diff --git a/cores/arduino/USBCore.cpp b/cores/arduino/USBCore.cpp
+index 3282565..f5cb96b 100644
+--- a/cores/arduino/USBCore.cpp
++++ b/cores/arduino/USBCore.cpp
+@@ -25,6 +25,8 @@
+ extern "C" uint8_t ps4AuthGet(uint8_t reportId, uint8_t* data);
+ extern "C" bool ps4AuthSet(uint8_t reportId, const uint8_t* data, uint8_t length);
+ extern "C" void ps4AuthCommit(uint8_t reportId);
++extern "C" void ps4AuthSeenF0(uint8_t length, bool validShape);
++extern "C" void ps4AuthUsbReset();
+ 
+ /** Pulse generation counters to keep track of the number of milliseconds remaining for each pulse type */
+ #define TX_RX_LED_PULSE_MS 100
+@@ -692,6 +694,8 @@ ISR(USB_COM_vect)
+ 	                uint8_t buffer[64];
+ 	                int len = USB_RecvControl(buffer, min(sizeof(buffer), setup.wLength));
+ 	                ok = (len >= 0);
++                if (setup.wValueL == 0xF0)
++                    ps4AuthSeenF0((uint8_t)len, len == 64 && setup.wLength == 64 && buffer[0] == 0xF0);
+                 if (setup.wValueL == 0xF0 || setup.wValueL == 0xF4)
+                     ok = len == 64 && setup.wLength == 64 &&
+                          buffer[0] == setup.wValueL &&
+@@ -840,6 +844,7 @@ ISR(USB_GEN_vect)
+ 	//	End of Reset
+ 	if (udint & (1<<EORSTI))
+ 	{
++		ps4AuthUsbReset();
+ 		InitEP(0,EP_TYPE_CONTROL,EP_SINGLE_64);	// init ep0
+ 		_usbConfiguration = 0;			// not configured yet
+ 		UEIENX = 1 << RXSTPE;			// Enable interrupts for ep0

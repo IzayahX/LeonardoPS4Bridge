@@ -1,0 +1,26 @@
+# Credential material: never commit these.
+private_crt.h
+public_identity.h
+key*.pem
+serial*.txt
+sig*.bin
+credentials/
+secrets/
+
+# Compiled firmware embeds credential material.
+*.hex
+*.eep
+*.elf
+*.bin
+*.map
+build/
+.build/
+
+# Local tooling.
+__pycache__/
+*.pyc
+.venv/
+.vs/
+.vscode/
+*.user
+

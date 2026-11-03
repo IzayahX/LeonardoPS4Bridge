@@ -1,0 +1,49 @@
+diff --git a/cores/arduino/USBCore.cpp b/cores/arduino/USBCore.cpp
+index e270798..5a5a719 100644
+--- a/cores/arduino/USBCore.cpp
++++ b/cores/arduino/USBCore.cpp
+@@ -21,6 +21,10 @@
+ 
+ #if defined(USBCON)
+ 
++// Implemented by the sketch; feature data excludes the report ID.
++extern "C" uint8_t ps4AuthGet(uint8_t reportId, uint8_t* data);
++extern "C" void ps4AuthSet(uint8_t reportId, const uint8_t* data, uint8_t length);
++
+ /** Pulse generation counters to keep track of the number of milliseconds remaining for each pulse type */
+ #define TX_RX_LED_PULSE_MS 100
+ volatile u8 TxLEDPulse; /**< Milliseconds remaining for data Tx LED pulse */
+@@ -647,11 +651,20 @@ ISR(USB_COM_vect)
+ 	                    case 0xF3:  // Reset auth
+ 	                        featureData = output_0xf3;
+ 	                        featureLen = output_0xf3_size;
++                        ps4AuthSet(0xF3, nullptr, 0);
+ 	                        break;
+-						case 0xF1:
+-                		case 0xF2:
+-                    		ok = false;
+-                    		break;
++                    case 0xF1:
++                    case 0xF2: {
++                        uint8_t data[63] = {};
++                        uint8_t length = ps4AuthGet(reportId, data);
++                        if (length && (uint16_t)setup.wLength >= (uint16_t)length + 1) {
++                            InitControl(length + 1);
++                            SendControl(reportId);
++                            USB_SendControl(0, data, length);
++                            ok = true;
++                        }
++                        break;
++                    }
+ 	                    default:
+ 	                        ok = false;
+ 	                        break;
+@@ -674,6 +687,8 @@ ISR(USB_COM_vect)
+ 	                uint8_t buffer[64];
+ 	                int len = USB_RecvControl(buffer, min(sizeof(buffer), setup.wLength));
+ 	                ok = (len >= 0);
++                if (ok && setup.wValueL == 0xF0 && len == 64 && buffer[0] == 0xF0)
++                    ps4AuthSet(0xF0, buffer + 1, 63);
+ 	            }
+ 	            else if (setup.wValueH == 0x02)  // Output report type
+ 	            {
